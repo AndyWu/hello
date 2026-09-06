@@ -64,15 +64,15 @@
     flex: 1;
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    grid-template-rows: repeat(3, 1fr);
-    gap: 4vw;
-    padding: 4vw;
+    grid-template-rows: repeat(4, 1fr);
+    gap: 3vw;
+    padding: 3vw;
     align-content: center;
   }
   .hole-wrap {
     position: relative;
     width: 100%;
-    padding-top: 100%;
+    height: 100%;
   }
   .hole {
     position: absolute;
@@ -98,7 +98,7 @@
     filter: drop-shadow(0 3px 2px rgba(0,0,0,0.35));
   }
   .critter .emoji {
-    font-size: 12vw;
+    font-size: min(9vw, 8vh);
     line-height: 1;
   }
   .hole.up .critter { transform: translateY(0%); }
@@ -203,7 +203,7 @@
 
 <script>
 (function () {
-  const HOLE_COUNT = 9;
+  const HOLE_COUNT = 12;
   const GAME_SECONDS = 30;
   const MAX_ACTIVE = 3;
   const BONUS_ANIMALS = ['🦖', '🐊'];
