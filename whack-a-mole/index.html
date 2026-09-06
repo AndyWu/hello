@@ -42,24 +42,24 @@
     color: #234;
   }
   #stats span { min-width: 2.5em; display: inline-block; }
-  #animalPicker {
+  #legend {
     display: flex;
     flex-wrap: wrap;
     justify-content: flex-end;
     gap: 6px;
   }
-  .animal-btn {
-    font-size: 22px;
-    padding: 4px 8px;
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 15px;
+    font-weight: 700;
+    padding: 3px 7px;
     border-radius: 10px;
-    border: 2px solid transparent;
-    background: #ffffffaa;
-    cursor: pointer;
   }
-  .animal-btn.selected {
-    border-color: #ff7043;
-    background: #ffffffee;
-  }
+  .legend-item .emojis { font-size: 17px; }
+  .legend-item.bonus { background: #dff5df; color: #2c7a2c; }
+  .legend-item.penalty { background: #fde0dd; color: #b23a2f; }
   #board {
     flex: 1;
     display: grid;
@@ -111,11 +111,16 @@
   }
   .bonk {
     position: absolute;
-    font-size: 8vw;
+    font-size: 7vw;
+    font-weight: 800;
+    color: #2c7a2c;
+    text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff;
     pointer-events: none;
     animation: bonkPop 0.4s ease-out forwards;
     z-index: 5;
+    top: 10%;
   }
+  .bonk.negative { color: #b23a2f; }
   @keyframes bonkPop {
     0% { transform: scale(0.4) translateY(0); opacity: 1; }
     100% { transform: scale(1.4) translateY(-30px); opacity: 0; }
@@ -141,22 +146,14 @@
   }
   .card h1 { margin: 0 0 6px; font-size: 26px; color: #234; }
   .card p { margin: 4px 0 18px; color: #567; }
-  .pick-row {
+  .rules-row {
     display: flex;
-    flex-wrap: wrap;
     justify-content: center;
-    gap: 8px;
+    gap: 10px;
     margin-bottom: 20px;
   }
-  .pick {
-    font-size: 28px;
-    padding: 8px 10px;
-    border-radius: 14px;
-    border: 3px solid #ddd;
-    background: #fff;
-    cursor: pointer;
-  }
-  .pick.selected { border-color: #ff7043; background: #fff0e8; }
+  .rules-row .legend-item { font-size: 17px; padding: 6px 10px; border-radius: 12px; }
+  .rules-row .legend-item .emojis { font-size: 22px; }
   .big-btn {
     font-size: 18px;
     font-weight: 700;
@@ -179,12 +176,9 @@
       <span>⏱ <span id="time">30</span></span>
       <span>⭐ <span id="score">0</span></span>
     </div>
-    <div id="animalPicker">
-      <button class="animal-btn selected" data-emoji="🐶">🐶</button>
-      <button class="animal-btn" data-emoji="🐰">🐰</button>
-      <button class="animal-btn" data-emoji="🐱">🐱</button>
-      <button class="animal-btn" data-emoji="🦖">🦖</button>
-      <button class="animal-btn" data-emoji="🐊">🐊</button>
+    <div id="legend">
+      <span class="legend-item bonus"><span class="emojis">🦖🐊</span>+2</span>
+      <span class="legend-item penalty"><span class="emojis">🐶🐰🐱</span>−1</span>
     </div>
   </header>
   <div id="board"></div>
@@ -193,13 +187,10 @@
 <div id="overlay">
   <div class="card" id="startCard">
     <h1>Whack-a-Mole</h1>
-    <p>Pick your critter and tap it fast when it pops up!</p>
-    <div class="pick-row" id="pickRow">
-      <button class="pick selected" data-emoji="🐶">🐶</button>
-      <button class="pick" data-emoji="🐰">🐰</button>
-      <button class="pick" data-emoji="🐱">🐱</button>
-      <button class="pick" data-emoji="🦖">🦖</button>
-      <button class="pick" data-emoji="🐊">🐊</button>
+    <p>Tap fast! Dinosaurs and crocodiles are worth points — dogs, rabbits, and cats cost you one.</p>
+    <div class="rules-row">
+      <span class="legend-item bonus"><span class="emojis">🦖🐊</span>+2</span>
+      <span class="legend-item penalty"><span class="emojis">🐶🐰🐱</span>−1</span>
     </div>
     <button class="big-btn" id="startBtn">Start Game</button>
   </div>
@@ -215,6 +206,10 @@
   const HOLE_COUNT = 9;
   const GAME_SECONDS = 30;
   const MAX_ACTIVE = 3;
+  const BONUS_ANIMALS = ['🦖', '🐊'];
+  const PENALTY_ANIMALS = ['🐶', '🐰', '🐱'];
+  const ALL_ANIMALS = [...BONUS_ANIMALS, ...PENALTY_ANIMALS];
+  const BONUS_SET = new Set(BONUS_ANIMALS);
 
   const board = document.getElementById('board');
   const scoreEl = document.getElementById('score');
@@ -225,10 +220,7 @@
   const finalScoreEl = document.getElementById('finalScore');
   const startBtn = document.getElementById('startBtn');
   const restartBtn = document.getElementById('restartBtn');
-  const pickRow = document.getElementById('pickRow');
-  const animalPicker = document.getElementById('animalPicker');
 
-  let currentEmoji = '🐶';
   let score = 0;
   let timeLeft = GAME_SECONDS;
   let running = false;
@@ -245,31 +237,14 @@
     hole.className = 'hole';
     const critter = document.createElement('div');
     critter.className = 'critter';
-    critter.innerHTML = '<span class="emoji">🐶</span>';
+    critter.innerHTML = '<span class="emoji"></span>';
     hole.appendChild(critter);
     wrap.appendChild(hole);
     board.appendChild(wrap);
-    holes.push({ el: hole, critter, up: false, whacked: false });
+    holes.push({ el: hole, critter, up: false, whacked: false, emoji: null });
 
     hole.addEventListener('pointerdown', () => whack(holes[i]));
   }
-
-  function setEmoji(emoji) {
-    currentEmoji = emoji;
-    holes.forEach(h => { h.critter.querySelector('.emoji').textContent = emoji; });
-    document.querySelectorAll('.animal-btn').forEach(b => b.classList.toggle('selected', b.dataset.emoji === emoji));
-    document.querySelectorAll('.pick').forEach(b => b.classList.toggle('selected', b.dataset.emoji === emoji));
-  }
-
-  animalPicker.addEventListener('click', (e) => {
-    const btn = e.target.closest('.animal-btn');
-    if (btn) setEmoji(btn.dataset.emoji);
-  });
-
-  pickRow.addEventListener('click', (e) => {
-    const btn = e.target.closest('.pick');
-    if (btn) setEmoji(btn.dataset.emoji);
-  });
 
   function hideHole(hole) {
     clearTimeout(hole.hideTimeout);
@@ -293,6 +268,8 @@
   function spawn(hole) {
     hole.up = true;
     hole.whacked = false;
+    hole.emoji = ALL_ANIMALS[Math.floor(Math.random() * ALL_ANIMALS.length)];
+    hole.critter.querySelector('.emoji').textContent = hole.emoji;
     activeCount++;
     hole.el.classList.add('up');
     hole.el.classList.remove('whacked');
@@ -308,12 +285,15 @@
     if (!running || !hole.up || hole.whacked) return;
     hole.whacked = true;
     hole.el.classList.add('whacked');
-    score++;
+
+    const isBonus = BONUS_SET.has(hole.emoji);
+    const delta = isBonus ? 2 : -1;
+    score += delta;
     scoreEl.textContent = score;
 
     const bonk = document.createElement('div');
-    bonk.className = 'bonk';
-    bonk.textContent = '💥';
+    bonk.className = 'bonk' + (isBonus ? '' : ' negative');
+    bonk.textContent = (delta > 0 ? '+' : '') + delta;
     hole.el.appendChild(bonk);
     setTimeout(() => bonk.remove(), 400);
 
