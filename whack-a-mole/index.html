@@ -271,11 +271,20 @@
     return idx;
   }
 
+  function hideHole(hole, scheduleNext) {
+    clearTimeout(hole.hideTimeout);
+    hole.up = false;
+    hole.el.classList.remove('up', 'whacked');
+    if (scheduleNext && running) {
+      const gap = 150 + Math.random() * 250;
+      popTimer = setTimeout(popUp, gap);
+    }
+  }
+
   function popUp() {
     if (!running) return;
-    if (activeHole !== null && holes[activeHole].up && !holes[activeHole].whacked) {
-      holes[activeHole].up = false;
-      holes[activeHole].el.classList.remove('up');
+    if (activeHole !== null && holes[activeHole].up) {
+      hideHole(holes[activeHole], false);
     }
     const idx = randomHole(activeHole);
     activeHole = idx;
@@ -289,16 +298,7 @@
     const maxUp = Math.max(minUp + 200, 1400 - score * 15);
     const upDuration = minUp + Math.random() * (maxUp - minUp);
 
-    hole.hideTimeout = setTimeout(() => {
-      if (hole.up && !hole.whacked) {
-        hole.up = false;
-        hole.el.classList.remove('up');
-      }
-      if (running) {
-        const gap = 150 + Math.random() * 250;
-        popTimer = setTimeout(popUp, gap);
-      }
-    }, upDuration);
+    hole.hideTimeout = setTimeout(() => hideHole(hole, true), upDuration);
   }
 
   function whack(hole) {
@@ -315,10 +315,7 @@
     setTimeout(() => bonk.remove(), 400);
 
     clearTimeout(hole.hideTimeout);
-    hole.hideTimeout = setTimeout(() => {
-      hole.up = false;
-      hole.el.classList.remove('up');
-    }, 150);
+    hole.hideTimeout = setTimeout(() => hideHole(hole, true), 150);
   }
 
   function tick() {
