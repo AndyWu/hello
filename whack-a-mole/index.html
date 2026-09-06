@@ -44,6 +44,8 @@
   #stats span { min-width: 2.5em; display: inline-block; }
   #animalPicker {
     display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
     gap: 6px;
   }
   .animal-btn {
@@ -141,13 +143,14 @@
   .card p { margin: 4px 0 18px; color: #567; }
   .pick-row {
     display: flex;
+    flex-wrap: wrap;
     justify-content: center;
-    gap: 12px;
+    gap: 8px;
     margin-bottom: 20px;
   }
   .pick {
-    font-size: 34px;
-    padding: 10px 14px;
+    font-size: 28px;
+    padding: 8px 10px;
     border-radius: 14px;
     border: 3px solid #ddd;
     background: #fff;
@@ -180,6 +183,8 @@
       <button class="animal-btn selected" data-emoji="🐶">🐶</button>
       <button class="animal-btn" data-emoji="🐰">🐰</button>
       <button class="animal-btn" data-emoji="🐱">🐱</button>
+      <button class="animal-btn" data-emoji="🦖">🦖</button>
+      <button class="animal-btn" data-emoji="🐊">🐊</button>
     </div>
   </header>
   <div id="board"></div>
@@ -193,6 +198,8 @@
       <button class="pick selected" data-emoji="🐶">🐶</button>
       <button class="pick" data-emoji="🐰">🐰</button>
       <button class="pick" data-emoji="🐱">🐱</button>
+      <button class="pick" data-emoji="🦖">🦖</button>
+      <button class="pick" data-emoji="🐊">🐊</button>
     </div>
     <button class="big-btn" id="startBtn">Start Game</button>
   </div>
@@ -207,6 +214,7 @@
 (function () {
   const HOLE_COUNT = 9;
   const GAME_SECONDS = 30;
+  const MAX_ACTIVE = 3;
 
   const board = document.getElementById('board');
   const scoreEl = document.getElementById('score');
@@ -226,7 +234,7 @@
   let running = false;
   let popTimer = null;
   let tickTimer = null;
-  let activeHole = null;
+  let activeCount = 0;
 
   const holes = [];
 
@@ -263,34 +271,29 @@
     if (btn) setEmoji(btn.dataset.emoji);
   });
 
-  function randomHole(excludeIdx) {
-    let idx;
-    do {
-      idx = Math.floor(Math.random() * holes.length);
-    } while (idx === excludeIdx && holes.length > 1);
-    return idx;
-  }
-
-  function hideHole(hole, scheduleNext) {
+  function hideHole(hole) {
     clearTimeout(hole.hideTimeout);
-    hole.up = false;
-    hole.el.classList.remove('up', 'whacked');
-    if (scheduleNext && running) {
-      const gap = 150 + Math.random() * 250;
-      popTimer = setTimeout(popUp, gap);
+    if (hole.up) {
+      hole.up = false;
+      activeCount--;
     }
+    hole.el.classList.remove('up', 'whacked');
   }
 
-  function popUp() {
+  function trySpawn() {
     if (!running) return;
-    if (activeHole !== null && holes[activeHole].up) {
-      hideHole(holes[activeHole], false);
+    if (activeCount < MAX_ACTIVE) {
+      const empty = holes.filter(h => !h.up);
+      if (empty.length) spawn(empty[Math.floor(Math.random() * empty.length)]);
     }
-    const idx = randomHole(activeHole);
-    activeHole = idx;
-    const hole = holes[idx];
+    const gap = Math.max(220, 550 - score * 6) + Math.random() * 250;
+    popTimer = setTimeout(trySpawn, gap);
+  }
+
+  function spawn(hole) {
     hole.up = true;
     hole.whacked = false;
+    activeCount++;
     hole.el.classList.add('up');
     hole.el.classList.remove('whacked');
 
@@ -298,7 +301,7 @@
     const maxUp = Math.max(minUp + 200, 1400 - score * 15);
     const upDuration = minUp + Math.random() * (maxUp - minUp);
 
-    hole.hideTimeout = setTimeout(() => hideHole(hole, true), upDuration);
+    hole.hideTimeout = setTimeout(() => hideHole(hole), upDuration);
   }
 
   function whack(hole) {
@@ -315,7 +318,7 @@
     setTimeout(() => bonk.remove(), 400);
 
     clearTimeout(hole.hideTimeout);
-    hole.hideTimeout = setTimeout(() => hideHole(hole, true), 150);
+    hole.hideTimeout = setTimeout(() => hideHole(hole), 150);
   }
 
   function tick() {
@@ -332,7 +335,7 @@
     scoreEl.textContent = score;
     timeEl.textContent = timeLeft;
     running = true;
-    activeHole = null;
+    activeCount = 0;
     holes.forEach(h => {
       h.up = false;
       h.whacked = false;
@@ -342,7 +345,7 @@
     overlay.classList.add('hidden');
     clearTimeout(popTimer);
     clearInterval(tickTimer);
-    popTimer = setTimeout(popUp, 400);
+    popTimer = setTimeout(trySpawn, 400);
     tickTimer = setInterval(tick, 1000);
   }
 
